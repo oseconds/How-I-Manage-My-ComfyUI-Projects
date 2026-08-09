@@ -46,70 +46,65 @@ Instead, a single Portable Runtime is shared, while each project focuses on *wor
 
 == Why This Structure?
 
-=== Separation of Runtime and Project
+When working with ComfyUI normally, workflows, input files, output files, and other working data tend to accumulate in the same workspace.
 
-ComfyUI Portable contains Python, PyTorch, CUDA-related packages, the ComfyUI application itself, custom nodes, models, and other runtime components.
-
-Duplicating this environment for every project creates several problems:
-
-* Duplicate ComfyUI environments
-* Repeated model and Python package requirements
-* More difficult update management
-* Unnecessarily large Git repositories
-* More difficult project migration and backup
-
-Therefore, the Runtime is kept externally and shared, while each project only manages its relatively lightweight project files.
-
-=== Project-Specific Git Management
-
-Each project is created as an independent Git repository.
+As the number of experiments and projects grows, this quickly becomes difficult to manage.
 
 [source,text]
 ----
-Projects/
-├── project-a/
-│   ├── workflows/
-│   ├── prompts/
-│   ├── input/
-│   ├── output/
-│   ├── docs/
-│   └── ...
-│
-├── project-b/
-│   ├── workflows/
-│   ├── prompts/
-│   ├── input/
-│   ├── output/
-│   ├── docs/
-│   └── ...
-│
-└── project-c/
-    └── ...
-----
-
-This allows commits, branches, tags, GitHub archives, and other version-control operations to be managed independently for each project.
-
-== Project Directory
-
-Recommended basic structure:
-
-[source,text]
-----
-project/
+ComfyUI/
 ├── workflows/
-├── prompts/
 ├── input/
 ├── output/
-├── docs/
-│
-├── run.bat
-├── import_workflow.bat
-├── selector.ps1
-│
-├── README.md
-├── .gitignore
-└── .gitattributes
+├── models/
+├── ...
+├── workflow_001.json
+├── workflow_002.json
+├── test.png
+├── test_02.png
+├── final.png
+└── ...
 ----
+
+The problem is not that ComfyUI cannot handle this structure. The problem is that the workspace does not naturally represent individual projects.
+
+This creates several practical problems:
+
+* It becomes difficult to tell which workflow belongs to which project.
+* Input and output files from different projects become mixed together.
+* Useful workflows are buried among experiments and temporary files.
+* Keeping project files organized requires manually moving and sorting files.
+* Backing up or versioning a specific project with Git becomes inconvenient.
+* A Git repository can easily end up containing unrelated files.
+* Reusing the same ComfyUI environment across multiple projects becomes awkward.
+
+Instead of reorganizing the ComfyUI workspace every time a new project starts, this approach separates the **ComfyUI Runtime** from the **Project**.
+
+The ComfyUI Portable installation remains in one shared location, while each project gets its own directory for workflows, prompts, input, output, documentation, and Git history.
+
+[source,text]
+----
+                 ComfyUI Portable
+                    Runtime
+                       │
+          ┌────────────┼────────────┐
+          │            │            │
+          ▼            ▼            ▼
+       Project A    Project B    Project C
+          │            │            │
+       workflows    workflows    workflows
+       prompts      prompts      prompts
+       input        input        input
+       output       output       output
+       docs         docs         docs
+          │            │            │
+          ▼            ▼            ▼
+         Git          Git          Git
+----
+
+This means the runtime can remain shared, while project files stay organized and version-controlled independently.
+
+More importantly, it removes the need to constantly move files around just to keep the workspace organized.
 
 === Directory Roles
 
