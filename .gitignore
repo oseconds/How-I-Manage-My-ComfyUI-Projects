@@ -1,0 +1,18 @@
+# ComfyUI generated files
+
+prompts/*
+!prompts/.gitkeep
+
+input/*
+!input/.gitkeep
+
+output/*
+!output/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+
+# Local helper scripts
+import_workflow.bat
+selector.ps1

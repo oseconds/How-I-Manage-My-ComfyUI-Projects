@@ -1,0 +1,7 @@
+# Auto detect text files and perform LF normalization
+
+* text=auto
+*.H3 linguist-language=Thrift
+*.Kling linguist-language=Kotlin
+*.Seedance linguist-language=INI
+*.Image2 linguist-language=Gherkin

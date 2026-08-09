@@ -1,0 +1,547 @@
+= How I Manage My ComfyUI Projects
+:toc:
+:toclevels: 3
+:sectnums:
+:source-highlighter: highlight.js
+
+== Overview
+
+Instead of using ComfyUI Portable as one large workspace, this approach separates *project-specific Git repositories* from the *external ComfyUI Runtime*.
+
+The core idea is:
+
+[source,text]
+----
+ComfyUI Portable Runtime
+        │
+        ├── models/
+        ├── custom_nodes/
+        ├── user/
+        │
+        └── Global Workflow Source
+                 │
+                 │ import
+                 ▼
+        ┌─────────────────────┐
+        │   Project Repository │
+        ├─────────────────────┤
+        │ workflows/           │
+        │ prompts/             │
+        │ input/               │
+        │ output/              │
+        │ docs/                │
+        │                     │
+        │ run.bat              │
+        │ import_workflow.bat  │
+        │ selector.ps1         │
+        │ README.md            │
+        │ .gitignore           │
+        │ .gitattributes       │
+        └─────────────────────┘
+----
+
+ComfyUI itself is not duplicated for every project.
+
+Instead, a single Portable Runtime is shared, while each project focuses on *workflows, prompts, inputs/outputs, documentation, and Git version control*.
+
+== Why This Structure?
+
+=== Separation of Runtime and Project
+
+ComfyUI Portable contains Python, PyTorch, CUDA-related packages, the ComfyUI application itself, custom nodes, models, and other runtime components.
+
+Duplicating this environment for every project creates several problems:
+
+* Duplicate ComfyUI environments
+* Repeated model and Python package requirements
+* More difficult update management
+* Unnecessarily large Git repositories
+* More difficult project migration and backup
+
+Therefore, the Runtime is kept externally and shared, while each project only manages its relatively lightweight project files.
+
+=== Project-Specific Git Management
+
+Each project is created as an independent Git repository.
+
+[source,text]
+----
+Projects/
+├── project-a/
+│   ├── workflows/
+│   ├── prompts/
+│   ├── input/
+│   ├── output/
+│   ├── docs/
+│   └── ...
+│
+├── project-b/
+│   ├── workflows/
+│   ├── prompts/
+│   ├── input/
+│   ├── output/
+│   ├── docs/
+│   └── ...
+│
+└── project-c/
+    └── ...
+----
+
+This allows commits, branches, tags, GitHub archives, and other version-control operations to be managed independently for each project.
+
+== Project Directory
+
+Recommended basic structure:
+
+[source,text]
+----
+project/
+├── workflows/
+├── prompts/
+├── input/
+├── output/
+├── docs/
+│
+├── run.bat
+├── import_workflow.bat
+├── selector.ps1
+│
+├── README.md
+├── .gitignore
+└── .gitattributes
+----
+
+=== Directory Roles
+
+[cols="1,3"]
+|===
+|Path |Purpose
+
+|`workflows/`
+|Project workflows tracked by Git
+
+|`prompts/`
+|Prompt workspace. Generated files or other contents can be ignored depending on the project workflow
+
+|`input/`
+|Input files used by ComfyUI
+
+|`output/`
+|Generated results
+
+|`docs/`
+|Project documentation, production notes, and experiment records
+
+|`run.bat`
+|Entry point for launching ComfyUI for the project
+
+|`import_workflow.bat`
+|Entry point for selecting and importing a workflow from the global workflow list
+
+|`selector.ps1`
+|Keyboard-based workflow selector called by `import_workflow.bat`
+
+|===
+
+== External Runtime
+
+The project does not directly contain the ComfyUI Portable Runtime.
+
+`run.bat` calls Python and ComfyUI from the external Runtime and specifies the project's `input/` and `output/` directories as ComfyUI's input and output directories.
+
+Conceptually:
+
+[source,text]
+----
+Project
+  │
+  └── run.bat
+        │
+        ├── External Python
+        └── External ComfyUI
+                  │
+                  ├── Project/input
+                  └── Project/output
+----
+
+If the Runtime location changes, only the Runtime variable in `run.bat` needs to be updated.
+
+It is important not to include actual user-specific absolute paths in shared documentation or Git repositories.
+
+== Workflow Import
+
+Recently edited workflows in ComfyUI are stored in the Runtime's user workflow directory.
+
+However, automatically copying every workflow into a project repository can introduce unnecessary files.
+
+Instead, a separate importer is used.
+
+=== Import Flow
+
+[source,text]
+----
+ComfyUI Workflow Directory
+        │
+        │ scan *.json
+        │
+        ▼
+Sort by LastWriteTime
+        │
+        ▼
+Keyboard Selector
+        │
+        ├── ↑ / ↓  move
+        ├── Enter   select
+        └── Esc     cancel
+        │
+        ▼
+Project/workflows/
+----
+
+The most recently modified workflow is selected by default.
+
+A typical workflow is therefore:
+
+. Work on a workflow in ComfyUI
+. Save the workflow in ComfyUI
+. Run `import_workflow.bat` from the project
+. The latest workflow is selected by default
+. Press `Enter`
+. The workflow is copied to the project's `workflows/` directory
+. Commit the workflow to Git
+
+=== Why Not Copy Everything?
+
+The entire workflow directory could be linked or copied into the project, but this may bring unnecessary workflows into the repository.
+
+The selection-based import approach provides several advantages:
+
+* Only workflows required by the project are stored
+* Recent workflows can be selected quickly
+* The original ComfyUI workflow storage remains untouched
+* Global workflows and project workflows remain separate
+* The Git repository is not polluted with unrelated files
+
+== BAT + PowerShell Pattern
+
+On Windows, it is useful to use a BAT file as the user-facing launcher and PowerShell as the internal UI and logic layer.
+
+[source,text]
+----
+import_workflow.bat
+        │
+        ▼
+selector.ps1
+        │
+        ├── workflow scan
+        ├── sorting
+        ├── keyboard navigation
+        ├── selection
+        └── copy
+----
+
+=== Why Separate Them?
+
+It is possible to put all PowerShell code directly inside a BAT file, but this introduces several problems:
+
+* CMD quoting becomes complicated
+* Escaping `^`, `%`, parentheses, and other characters becomes necessary
+* Long scripts become difficult to maintain
+* Debugging becomes more difficult
+
+Therefore, responsibilities are separated:
+
+[source,text]
+----
+.bat = entry point
+.ps1 = implementation
+----
+
+`import_workflow.bat` only handles launching the tool, while the actual selector logic is handled by `selector.ps1`.
+
+== Git Strategy
+
+=== Tracked
+
+The following files are generally tracked by Git:
+
+[source,text]
+----
+workflows/
+docs/
+README.md
+.gitattributes
+.gitignore
+----
+
+Depending on the purpose of the project, prompts can also be included in Git.
+
+=== Ignored
+
+Input/output media and local helper scripts that do not need to be included in the repository can be ignored.
+
+For example:
+
+[source,gitignore]
+----
+# Generated / media files
+
+prompts/*
+!prompts/.gitkeep
+
+input/*
+!input/.gitkeep
+
+output/*
+!output/.gitkeep
+
+# Temporary files
+
+*.tmp
+*.temp
+
+# Local helper scripts
+
+import_workflow.bat
+selector.ps1
+----
+
+`import_workflow.bat` and `selector.ps1` can be excluded from Git because they are automatically generated by the project generator.
+
+== Project Generator
+
+Instead of manually creating every project, a single `create_project.bat` generates the project structure.
+
+[source,text]
+----
+create_project.bat
+        │
+        ├── enter project name
+        │
+        ├── create directories
+        │
+        ├── generate .gitignore
+        │
+        ├── generate .gitattributes
+        │
+        ├── generate README
+        │
+        ├── generate run.bat
+        │
+        ├── generate import_workflow.bat
+        │
+        ├── generate selector.ps1
+        │
+        └── git init
+----
+
+The important concept is the separation between the *project generator* and the *project Runtime*.
+
+Every new project receives the same directory structure and helper tools automatically.
+
+== Centralized `.gitattributes`
+
+Settings that are reused across multiple projects, such as `.gitattributes` language-detection rules, can be maintained in a separate configuration file.
+
+For example:
+
+[source,text]
+----
+create_project.bat
+gitattributes.conf
+        │
+        ├── project-a/.gitattributes
+        ├── project-b/.gitattributes
+        └── project-c/.gitattributes
+----
+
+If custom file extensions used by ComfyUI workflows or prompt-related tools need to be recognized by GitHub Linguist, rules can be added to the centralized configuration file.
+
+[source,gitattributes]
+----
+# Auto detect text files and perform LF normalization
+
+*.H3 linguist-language=Thrift
+*.Kling linguist-language=Kotlin
+*.Seedance linguist-language=INI
+*.Image2 linguist-language=Gherkin
+----
+
+This allows the same rules to be automatically included whenever a new project is created.
+
+== Complete Workflow
+
+The complete workflow:
+
+[source,text]
+----
+[Create Project]
+
+create_project.bat
+        │
+        ▼
+Project Repository
+        │
+        ├── Git initialized
+        ├── directory structure
+        ├── run.bat
+        ├── workflow importer
+        └── documentation
+        │
+        ▼
+[Work]
+
+run.bat
+        │
+        ▼
+External ComfyUI Portable
+        │
+        ▼
+Create / Edit Workflow
+        │
+        ▼
+Save Workflow
+        │
+        ▼
+[Import]
+
+import_workflow.bat
+        │
+        ▼
+selector.ps1
+        │
+        ▼
+Recent workflow selection
+        │
+        ▼
+project/workflows/
+        │
+        ▼
+[Version Control]
+
+git add
+git commit
+git push
+----
+
+== Design Principles
+
+=== 1. Keep Runtime External
+
+ComfyUI, Python, PyTorch, CUDA, models, and custom nodes are kept separate from the project repository.
+
+=== 2. Keep Project Data Local to the Project
+
+Workflows, documentation, experiment metadata, and other files that describe the project itself belong in the project repository.
+
+=== 3. Import Intentionally
+
+Instead of automatically importing every workflow, the user intentionally selects the workflows that should become part of the project.
+
+=== 4. Automate Repetition
+
+Repetitive tasks such as project creation, Git initialization, directory creation, and launcher generation are automated through the project generator.
+
+=== 5. Avoid Machine-Specific Paths in Shared Documentation
+
+Actual usernames, drive letters, personal directory structures, and other machine-specific information should not be included in shared documentation or Git repositories.
+
+For example:
+
+[source,text]
+----
+❌ C:\Users\<user>\...
+❌ D:\...
+❌ C:\Users\someone\Pictures\...
+
+✓ <COMFYUI_RUNTIME>/
+✓ <PROJECT_ROOT>/
+✓ external ComfyUI Portable runtime
+----
+
+== Possible Extensions
+
+This structure can be extended beyond the workflow importer.
+
+=== Workflow Metadata
+
+When importing a workflow, additional information could be recorded separately:
+
+* import date
+* workflow filename
+* model
+* sampler
+* resolution
+* purpose
+* project version
+
+=== Recent Workflow History
+
+Instead of only selecting the latest file, project-specific import history could also be recorded.
+
+[source,text]
+----
+docs/
+└── workflow-history.json
+----
+
+=== Workflow Preview
+
+When selecting a JSON file, the selector could display more than just the filename:
+
+* modification time
+* file size
+* model name
+* resolution
+* node count
+
+=== Project Launcher Menu
+
+`run.bat` could eventually be expanded from a simple launcher into a project launcher menu.
+
+[source,text]
+----
+Project Launcher
+
+> Run ComfyUI
+  Import Workflow
+  Open Workflows
+  Open Docs
+  Git Status
+  Git Log
+  Exit
+----
+
+== Summary
+
+The core idea is to **not treat ComfyUI itself as the project**.
+
+ComfyUI is the Runtime used to perform the work, while the Git repository is the Project Layer that records the work and its context.
+
+[source,text]
+----
+          COMFYUI RUNTIME
+                │
+    ┌───────────┴───────────┐
+    │                       │
+  Models                Custom Nodes
+    │                       │
+    └───────────┬───────────┘
+                │
+             Work
+                │
+                ▼
+      Workflow / Media / Notes
+                │
+                ▼
+         PROJECT REPOSITORY
+                │
+      ┌─────────┼─────────┐
+      │         │         │
+  workflows   docs     metadata
+      │
+      ▼
+      Git
+----
+
+This separation allows the ComfyUI environment to be shared while maintaining project-level reproducibility, organization, backup, and Git version control.
