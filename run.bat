@@ -4,7 +4,7 @@ setlocal
 title ComfyUI - How I Manage My ComfyUI Projects
 
 REM External ComfyUI Portable runtime
-set "COMFY=C:\AI\ComfyUI_windows_portable"
+set "COMFY=C:\**\ComfyUI_windows_portable"
 set "PROJECT=%~dp0"
 
 echo ========================================

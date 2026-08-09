@@ -13,6 +13,4 @@ output/*
 *.tmp
 *.temp
 
-# Local helper scripts
-import_workflow.bat
-selector.ps1
+
