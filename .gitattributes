@@ -1,7 +1,19 @@
 # Auto detect text files and perform LF normalization
-
 * text=auto
-*.H3 linguist-language=Thrift
-*.Kling linguist-language=Kotlin
-*.Seedance linguist-language=INI
-*.Image2 linguist-language=Gherkin
+
+# Prompt formats
+*.H3         linguist-language=Thrift
+*.Kling      linguist-language=Kotlin
+
+*.Seedance   linguist-language=INI
+*.Seedance25 linguist-language=INI
+
+# GPT Image family (canonical + legacy)
+*.GPTImage   linguist-language=Gherkin
+*.Image2     linguist-language=Gherkin
+*.GPTImage2  linguist-language=Gherkin
+*.GPTImage25 linguist-language=Gherkin
+
+*.Seedream   linguist-language=C
+*.zimage     linguist-language=Zig
+*.flux       linguist-language=Fantom
